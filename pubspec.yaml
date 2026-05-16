@@ -1,0 +1,22 @@
+name: smb_viewer
+description: SMB Viewer for iPhone using MethodChannel + AMSMB2
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  open_filex: ^4.3.4        # ダウンロードしたファイルをiOSで開く
+  path_provider: ^2.1.2     # 一時ディレクトリ取得
+  shared_preferences: ^2.2.2 # 接続履歴の保存
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.0
+
+flutter:
+  uses-material-design: true
