@@ -61,20 +61,6 @@ jobs:
             -workspace ios/Runner.xcworkspace \
             -scheme Runner
 
-      - name: iOSアプリをビルド
-        run: |
-          xcodebuild \
-            -workspace ios/Runner.xcworkspace \
-            -scheme Runner \
-            -configuration Release \
-            -destination generic/platform=iOS \
-            CODE_SIGNING_ALLOWED=NO \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGN_IDENTITY="" \
-            DEVELOPMENT_TEAM="" \
-            PROVISIONING_PROFILE="" \
-            build \
-            SYMROOT=$(pwd)/build/ios
 
       - name: IPAファイルを作成
         run: |
@@ -89,3 +75,20 @@ jobs:
           name: SMBViewer-IPA
           path: build/ios/Release-iphoneos/SMBViewer.ipa
           retention-days: 30
+
+      - name: iOSアプリをビルド
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner \
+            -configuration Release \
+            -destination generic/platform=iOS \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE="" \
+            build \
+            SYMROOT=$(pwd)/build/ios \
+            2>&1 | grep -E "error:|warning:|BUILD FAILED|BUILD SUCCEEDED" | head -50
