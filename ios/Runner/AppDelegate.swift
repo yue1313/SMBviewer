@@ -1,8 +1,8 @@
 import UIKit
 import Flutter
 
-@UIApplicationMain
-@objc class AppDelegate: FlutterAppDelegate {
+@main
+class AppDelegate: FlutterAppDelegate {
 
     private let smbHandler = SMBHandler()
 
@@ -13,7 +13,7 @@ import Flutter
 
         let controller = window?.rootViewController as! FlutterViewController
         let channel = FlutterMethodChannel(
-            name: "com.yourapp/smb",          // Dart側と必ず一致させる
+            name: "com.yourapp/smb",
             binaryMessenger: controller.binaryMessenger
         )
 
@@ -21,84 +21,49 @@ import Flutter
             guard let self = self else { return }
             switch call.method {
 
-            // ─────────────────────────────────
-            // 接続
-            // ─────────────────────────────────
             case "connect":
                 guard
                     let args = call.arguments as? [String: Any],
                     let host = args["host"] as? String,
                     let share = args["share"] as? String
                 else {
-                    result(FlutterError(code: "INVALID_ARGS",
-                                        message: "引数が不正です", details: nil))
+                    result(FlutterError(code: "INVALID_ARGS", message: "引数が不正です", details: nil))
                     return
                 }
                 let username = args["username"] as? String ?? "guest"
                 let password = args["password"] as? String ?? ""
-
-                self.smbHandler.connect(
-                    host: host, share: share,
-                    username: username, password: password
-                ) { error in
+                self.smbHandler.connect(host: host, share: share, username: username, password: password) { error in
                     if let error = error {
-                        result(FlutterError(code: "CONNECT_FAILED",
-                                            message: error.localizedDescription,
-                                            details: nil))
+                        result(FlutterError(code: "CONNECT_FAILED", message: error.localizedDescription, details: nil))
                     } else {
                         result(nil)
                     }
                 }
 
-            // ─────────────────────────────────
-            // 切断
-            // ─────────────────────────────────
             case "disconnect":
-                self.smbHandler.disconnect {
-                    result(nil)
-                }
+                self.smbHandler.disconnect { result(nil) }
 
-            // ─────────────────────────────────
-            // ファイル一覧
-            // ─────────────────────────────────
             case "listFiles":
-                guard
-                    let args = call.arguments as? [String: Any],
-                    let path = args["path"] as? String
-                else {
-                    result(FlutterError(code: "INVALID_ARGS",
-                                        message: "pathが必要です", details: nil))
+                guard let args = call.arguments as? [String: Any], let path = args["path"] as? String else {
+                    result(FlutterError(code: "INVALID_ARGS", message: "pathが必要です", details: nil))
                     return
                 }
-
                 self.smbHandler.listFiles(path: path) { files, error in
                     if let error = error {
-                        result(FlutterError(code: "LIST_FAILED",
-                                            message: error.localizedDescription,
-                                            details: nil))
+                        result(FlutterError(code: "LIST_FAILED", message: error.localizedDescription, details: nil))
                     } else {
                         result(files ?? [])
                     }
                 }
 
-            // ─────────────────────────────────
-            // ファイルダウンロード
-            // ─────────────────────────────────
             case "downloadFile":
-                guard
-                    let args = call.arguments as? [String: Any],
-                    let remotePath = args["remotePath"] as? String
-                else {
-                    result(FlutterError(code: "INVALID_ARGS",
-                                        message: "remotePathが必要です", details: nil))
+                guard let args = call.arguments as? [String: Any], let remotePath = args["remotePath"] as? String else {
+                    result(FlutterError(code: "INVALID_ARGS", message: "remotePathが必要です", details: nil))
                     return
                 }
-
                 self.smbHandler.downloadFile(remotePath: remotePath) { localPath, error in
                     if let error = error {
-                        result(FlutterError(code: "DOWNLOAD_FAILED",
-                                            message: error.localizedDescription,
-                                            details: nil))
+                        result(FlutterError(code: "DOWNLOAD_FAILED", message: error.localizedDescription, details: nil))
                     } else {
                         result(localPath)
                     }
