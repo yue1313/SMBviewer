@@ -22,12 +22,21 @@ jobs:
       - name: パッケージをインストール
         run: flutter pub get
 
-      - name: 署名設定を無効化
+      - name: SMBHandler.swiftをXcodeプロジェクトに登録
         run: |
-          /usr/libexec/PlistBuddy -c "Set :objects:97C147071CF9000F007C117D:buildSettings:CODE_SIGNING_ALLOWED NO" ios/Runner.xcodeproj/project.pbxproj || true
-          sed -i '' 's/DEVELOPMENT_TEAM = [^;]*;/DEVELOPMENT_TEAM = "";/g' ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/CODE_SIGN_IDENTITY = [^;]*;/CODE_SIGN_IDENTITY = "";/g' ios/Runner.xcodeproj/project.pbxproj
-          sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = [^;]*;/PROVISIONING_PROFILE_SPECIFIER = "";/g' ios/Runner.xcodeproj/project.pbxproj
+          gem install xcodeproj --quiet
+          ruby -e "
+            require 'xcodeproj'
+            project = Xcodeproj::Project.open('ios/Runner.xcodeproj')
+            target = project.targets.first
+            group = project.main_group['Runner']
+            unless group.files.map(&:path).include?('SMBHandler.swift')
+              file_ref = group.new_reference('SMBHandler.swift')
+              target.source_build_phase.add_file_reference(file_ref)
+              puts 'SMBHandler.swift を追加しました'
+            end
+            project.save
+          "
 
       - name: iOSアプリをビルド
         run: |
@@ -41,5 +50,19 @@ jobs:
             CODE_SIGN_IDENTITY="" \
             DEVELOPMENT_TEAM="" \
             PROVISIONING_PROFILE="" \
-            -allowProvisioningUpdates \
-            build
+            build \
+            SYMROOT=$(pwd)/build/ios
+
+      - name: IPAファイルを作成
+        run: |
+          cd build/ios/Release-iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r SMBViewer.ipa Payload/
+
+      - name: IPAファイルをアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: SMBViewer-IPA
+          path: build/ios/Release-iphoneos/SMBViewer.ipa
+          retention-days: 30
