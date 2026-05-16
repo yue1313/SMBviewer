@@ -22,21 +22,44 @@ jobs:
       - name: パッケージをインストール
         run: flutter pub get
 
-      - name: SMBHandler.swiftをXcodeプロジェクトに登録
+      - name: AMSMB2をXcodeプロジェクトに追加
         run: |
           gem install xcodeproj --quiet
           ruby -e "
             require 'xcodeproj'
             project = Xcodeproj::Project.open('ios/Runner.xcodeproj')
             target = project.targets.first
+
+            # SMBHandler.swiftを追加
             group = project.main_group['Runner']
             unless group.files.map(&:path).include?('SMBHandler.swift')
               file_ref = group.new_reference('SMBHandler.swift')
               target.source_build_phase.add_file_reference(file_ref)
-              puts 'SMBHandler.swift を追加しました'
             end
+
+            # AMSMB2 SPMパッケージを追加
+            pkg_url = 'https://github.com/amosavian/AMSMB2'
+            unless project.root_object.package_references.any? { |r| r.respond_to?(:repositoryURL) && r.repositoryURL == pkg_url }
+              pkg_ref = project.new(Xcodeproj::Project::Object::XCRemoteSwiftPackageReference)
+              pkg_ref.repositoryURL = pkg_url
+              pkg_ref.requirement = { 'kind' => 'upToNextMajorVersion', 'minimumVersion' => '3.0.0' }
+              project.root_object.package_references << pkg_ref
+
+              dep = project.new(Xcodeproj::Project::Object::XCSwiftPackageProductDependency)
+              dep.package = pkg_ref
+              dep.product_name = 'AMSMB2'
+              target.package_product_dependencies << dep
+            end
+
             project.save
+            puts '完了'
           "
+
+      - name: パッケージ依存関係を解決
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner
 
       - name: iOSアプリをビルド
         run: |
