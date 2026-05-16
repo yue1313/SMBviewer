@@ -1,20 +1,19 @@
 import Foundation
 import AMSMB2
 
-// モジュール名とクラス名が同じため明示的に型エイリアスで回避
-private typealias SMBClient = AMSMB2.AMSMB2
-
 class SMBHandler {
 
-    private var smb: SMBClient?
+    private var smb: SMB2Client?
 
     func connect(host: String, share: String, username: String, password: String) async throws {
         await smb?.disconnectShare()
         smb = nil
-        guard let url = URL(string: "smb://\(host)/"),
-              let client = SMBClient(url: url, credential: URLCredential(
-                user: username, password: password, persistence: .forSession))
-        else { throw makeError("URLまたは認証情報が無効です") }
+        guard let url = URL(string: "smb://\(host)/") else {
+            throw makeError("URLが無効です: \(host)")
+        }
+        let credential = URLCredential(
+            user: username, password: password, persistence: .forSession)
+        let client = SMB2Client(url: url, credential: credential)
         try await client.connectShare(name: share)
         smb = client
     }
@@ -42,13 +41,15 @@ class SMBHandler {
     func downloadFile(remotePath: String) async throws -> String {
         guard let smb = smb else { throw makeError("接続されていません") }
         let fileName = URL(fileURLWithPath: remotePath).lastPathComponent
-        let localURL = FileManager.default.temporaryDirectory.appendingPathComponent(fileName)
+        let localURL = FileManager.default.temporaryDirectory
+            .appendingPathComponent(fileName)
         try? FileManager.default.removeItem(at: localURL)
         try await smb.downloadItem(atPath: remotePath, to: localURL)
         return localURL.path
     }
 
     private func makeError(_ msg: String) -> NSError {
-        NSError(domain: "SMBHandler", code: -1, userInfo: [NSLocalizedDescriptionKey: msg])
+        NSError(domain: "SMBHandler", code: -1,
+                userInfo: [NSLocalizedDescriptionKey: msg])
     }
 }
