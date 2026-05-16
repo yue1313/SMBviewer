@@ -1,0 +1,40 @@
+name: Build iOS IPA
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: コードをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Flutterをセットアップ
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: パッケージをインストール
+        run: flutter pub get
+
+      - name: iOSアプリをビルド
+        run: flutter build ios --release --no-codesign
+
+      - name: IPAファイルを作成
+        run: |
+          cd build/ios/iphoneos
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r SMBViewer.ipa Payload/
+
+      - name: IPAファイルをアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: SMBViewer-IPA
+          path: build/ios/iphoneos/SMBViewer.ipa
+          retention-days: 30
