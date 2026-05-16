@@ -1,15 +1,18 @@
 import Foundation
 import AMSMB2
 
+// モジュール名とクラス名が同じため明示的に型エイリアスで回避
+private typealias SMBClient = AMSMB2.AMSMB2
+
 class SMBHandler {
 
-    private var smb: AMSMB2?
+    private var smb: SMBClient?
 
     func connect(host: String, share: String, username: String, password: String) async throws {
         await smb?.disconnectShare()
         smb = nil
         guard let url = URL(string: "smb://\(host)/"),
-              let client = AMSMB2(url: url, credential: URLCredential(
+              let client = SMBClient(url: url, credential: URLCredential(
                 user: username, password: password, persistence: .forSession))
         else { throw makeError("URLまたは認証情報が無効です") }
         try await client.connectShare(name: share)
