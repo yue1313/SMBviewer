@@ -45,6 +45,11 @@ jobs:
               dep.product_name = 'AMSMB2'
               target.package_product_dependencies << dep
             end
+            project.targets.each do |t|
+              t.build_configurations.each do |c|
+                c.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+              end
+            end
             project.save
             puts '完了'
           "
