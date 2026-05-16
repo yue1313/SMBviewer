@@ -22,9 +22,15 @@ jobs:
       - name: パッケージをインストール
         run: flutter pub get
 
+      - name: 署名設定を無効化
+        run: |
+          /usr/libexec/PlistBuddy -c "Set :objects:97C147071CF9000F007C117D:buildSettings:CODE_SIGNING_ALLOWED NO" ios/Runner.xcodeproj/project.pbxproj || true
+          sed -i '' 's/DEVELOPMENT_TEAM = [^;]*;/DEVELOPMENT_TEAM = "";/g' ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/CODE_SIGN_IDENTITY = [^;]*;/CODE_SIGN_IDENTITY = "";/g' ios/Runner.xcodeproj/project.pbxproj
+          sed -i '' 's/PROVISIONING_PROFILE_SPECIFIER = [^;]*;/PROVISIONING_PROFILE_SPECIFIER = "";/g' ios/Runner.xcodeproj/project.pbxproj
+
       - name: iOSアプリをビルド
         run: |
-          flutter build ios --release --no-codesign
           xcodebuild \
             -workspace ios/Runner.xcworkspace \
             -scheme Runner \
@@ -32,20 +38,8 @@ jobs:
             -destination generic/platform=iOS \
             CODE_SIGNING_ALLOWED=NO \
             CODE_SIGNING_REQUIRED=NO \
-            EXPANDED_CODE_SIGN_IDENTITY="" \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            PROVISIONING_PROFILE="" \
             -allowProvisioningUpdates \
             build
-
-      - name: IPAファイルを作成
-        run: |
-          cd build/ios/iphoneos
-          mkdir -p Payload
-          cp -r Runner.app Payload/
-          zip -r SMBViewer.ipa Payload/
-
-      - name: IPAファイルをアップロード
-        uses: actions/upload-artifact@v4
-        with:
-          name: SMBViewer-IPA
-          path: build/ios/iphoneos/SMBViewer.ipa
-          retention-days: 30
