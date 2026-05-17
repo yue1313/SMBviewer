@@ -63,6 +63,20 @@ jobs:
             -workspace ios/Runner.xcworkspace \
             -scheme Runner
 
+      - name: AMSMB2の公開APIを確認
+        run: |
+          echo "=== AMSMB2 Swift ソースファイル ==="
+          find $HOME/Library/Developer/Xcode/DerivedData \
+            -path "*/checkouts/AMSMB2/AMSMB2/*.swift" 2>/dev/null | sort
+
+          echo ""
+          echo "=== 公開クラス・構造体・アクター ==="
+          find $HOME/Library/Developer/Xcode/DerivedData \
+            -path "*/checkouts/AMSMB2/AMSMB2/*.swift" 2>/dev/null \
+            -exec grep -h "^public\|^open\|^@objc" {} \; \
+            | grep -E "class |struct |actor |func |init" \
+            | head -60
+
       - name: iOSアプリをビルド
         run: |
           set -o pipefail
