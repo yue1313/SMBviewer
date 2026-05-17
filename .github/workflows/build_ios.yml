@@ -25,6 +25,22 @@ jobs:
       - name: xcprettyをインストール
         run: gem install xcpretty --quiet
 
+      - name: AMSMB2の正確なAPIをソースから確認
+        run: |
+          git clone --depth 1 --branch 3.4.0 \
+            https://github.com/amosavian/AMSMB2.git /tmp/amsmb2src
+          echo "=== 公開クラス/構造体/アクター ==="
+          grep -rh "^public class\|^public struct\|^public actor\|^open class\|^package class" \
+            /tmp/amsmb2src/AMSMB2/ 2>/dev/null
+          echo ""
+          echo "=== public init ==="
+          grep -rh "public.*init\|public required init" \
+            /tmp/amsmb2src/AMSMB2/ 2>/dev/null | head -20
+          echo ""
+          echo "=== connectShare / contentsOfDirectory / downloadItem ==="
+          grep -rh "func connectShare\|func contentsOfDirectory\|func downloadItem\|func disconnect" \
+            /tmp/amsmb2src/AMSMB2/ 2>/dev/null | head -20
+
       - name: AMSMB2をXcodeプロジェクトに追加
         run: |
           gem install xcodeproj --quiet
@@ -62,20 +78,6 @@ jobs:
           xcodebuild -resolvePackageDependencies \
             -workspace ios/Runner.xcworkspace \
             -scheme Runner
-
-      - name: AMSMB2の公開APIを確認
-        run: |
-          echo "=== AMSMB2 Swift ソースファイル ==="
-          find $HOME/Library/Developer/Xcode/DerivedData \
-            -path "*/checkouts/AMSMB2/AMSMB2/*.swift" 2>/dev/null | sort
-
-          echo ""
-          echo "=== 公開クラス・構造体・アクター ==="
-          find $HOME/Library/Developer/Xcode/DerivedData \
-            -path "*/checkouts/AMSMB2/AMSMB2/*.swift" 2>/dev/null \
-            -exec grep -h "^public\|^open\|^@objc" {} \; \
-            | grep -E "class |struct |actor |func |init" \
-            | head -60
 
       - name: iOSアプリをビルド
         run: |
