@@ -1,4 +1,76 @@
-- name: iOSアプリをビルド
+name: Build iOS IPA
+
+on:
+  push:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: macos-latest
+
+    steps:
+      - name: コードをチェックアウト
+        uses: actions/checkout@v4
+
+      - name: Flutterをセットアップ
+        uses: subosito/flutter-action@v2
+        with:
+          flutter-version: '3.24.0'
+          channel: 'stable'
+
+      - name: パッケージをインストール
+        run: flutter pub get
+
+      - name: AMSMB2のAPIをソースから確認
+        run: |
+          git clone --depth 1 --branch 3.4.0 https://github.com/amosavian/AMSMB2.git /tmp/amsmb2src
+          echo "=== 公開クラス ==="
+          grep -rh "^public class\|^open class\|^public struct\|^public actor" /tmp/amsmb2src/AMSMB2/ || true
+          echo "=== public init ==="
+          grep -rh "public.*convenience.*init\|public.*init(" /tmp/amsmb2src/AMSMB2/ | head -10 || true
+          echo "=== connect disconnect contents download ==="
+          grep -rh "func connect\|func disconnect\|func contents\|func download" /tmp/amsmb2src/AMSMB2/ | head -20 || true
+
+      - name: AMSMB2をXcodeプロジェクトに追加
+        run: |
+          gem install xcodeproj --quiet
+          ruby -e "
+            require 'xcodeproj'
+            project = Xcodeproj::Project.open('ios/Runner.xcodeproj')
+            target = project.targets.first
+            group = project.main_group['Runner']
+            unless group.files.map(&:path).include?('SMBHandler.swift')
+              file_ref = group.new_reference('SMBHandler.swift')
+              target.source_build_phase.add_file_reference(file_ref)
+            end
+            pkg_url = 'https://github.com/amosavian/AMSMB2'
+            unless project.root_object.package_references.any? { |r| r.respond_to?(:repositoryURL) && r.repositoryURL == pkg_url }
+              pkg_ref = project.new(Xcodeproj::Project::Object::XCRemoteSwiftPackageReference)
+              pkg_ref.repositoryURL = pkg_url
+              pkg_ref.requirement = { 'kind' => 'upToNextMajorVersion', 'minimumVersion' => '3.0.0' }
+              project.root_object.package_references << pkg_ref
+              dep = project.new(Xcodeproj::Project::Object::XCSwiftPackageProductDependency)
+              dep.package = pkg_ref
+              dep.product_name = 'AMSMB2'
+              target.package_product_dependencies << dep
+            end
+            project.targets.each do |t|
+              t.build_configurations.each do |c|
+                c.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '13.0'
+              end
+            end
+            project.save
+            puts '完了'
+          "
+
+      - name: パッケージ依存関係を解決
+        run: |
+          xcodebuild -resolvePackageDependencies \
+            -workspace ios/Runner.xcworkspace \
+            -scheme Runner
+
+      - name: iOSアプリをビルド
         run: |
           xcodebuild \
             -workspace ios/Runner.xcworkspace \
@@ -12,4 +84,22 @@
             PROVISIONING_PROFILE="" \
             build \
             SYMROOT=$(pwd)/build/ios \
-            2>&1 | grep -E "error:|warning:.*error|BUILD FAILED|Undefined|ld:|linker" | head -80
+            2>&1 | tee /tmp/build.log | tail -50
+          grep "error:" /tmp/build.log | head -20 || true
+
+      - name: IPAファイルを作成
+        run: |
+          APP_PATH=$(find build/ios -name "Runner.app" -type d | head -1)
+          echo "Runner.app found at: $APP_PATH"
+          APP_DIR=$(dirname "$APP_PATH")
+          cd "$APP_DIR"
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r SMBViewer.ipa Payload/
+
+      - name: IPAファイルをアップロード
+        uses: actions/upload-artifact@v4
+        with:
+          name: SMBViewer-IPA
+          path: build/ios/**/SMBViewer.ipa
+          retention-days: 30
