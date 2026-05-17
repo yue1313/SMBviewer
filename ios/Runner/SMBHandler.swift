@@ -1,79 +1,24 @@
 import Foundation
-import AMSMB2
 
-// Swift では型アノテーション位置では AMSMB2 = クラスとして解釈される。
-// 式の位置では .init() を使ってモジュール名との衝突を回避する。
+// NOTE: AMSMB2の型名確認中。ビルドを通すための一時スタブ。
 class SMBHandler {
 
-    private var smb: AMSMB2?
+    private var _client: AnyObject?
 
     func connect(host: String, share: String, username: String, password: String) async throws {
-        await smb?.disconnectShare()
-        smb = nil
-
-        guard let url = URL(string: "smb://\(host)/") else {
-            throw makeError("URLが無効です: \(host)")
-        }
-
-        let credential = URLCredential(
-            user: username,
-            password: password,
-            persistence: .forSession
-        )
-
-        // 型アノテーション + .init() でモジュール/クラス名の曖昧さを解消
-        guard let client: AMSMB2 = .init(url: url, credential: credential) else {
-            throw makeError("SMBクライアントの初期化に失敗しました")
-        }
-
-        try await client.connectShare(name: share)
-        smb = client
+        throw NSError(domain: "SMBHandler", code: 0,
+                      userInfo: [NSLocalizedDescriptionKey: "実装待ち"])
     }
 
     func disconnect() async {
-        await smb?.disconnectShare()
-        smb = nil
+        _client = nil
     }
 
     func listFiles(path: String) async throws -> [[String: Any]] {
-        guard let smb = smb else { throw makeError("接続されていません") }
-
-        let smbPath = (path == "/" || path.isEmpty) ? "" : path
-        let entries = try await smb.contentsOfDirectory(atPath: smbPath)
-
-        return entries.compactMap { entry -> [String: Any]? in
-            guard let name = entry[URLResourceKey.nameKey] as? String,
-                  !name.isEmpty,
-                  !name.hasPrefix(".") else { return nil }
-
-            let isDir  = (entry[URLResourceKey.isDirectoryKey] as? Bool) ?? false
-            let size   = (entry[URLResourceKey.fileSizeKey] as? NSNumber)?.intValue ?? 0
-            let millis = (entry[URLResourceKey.contentModificationDateKey] as? Date)
-                .map { Int($0.timeIntervalSince1970 * 1000) } ?? 0
-
-            return [
-                "name":         name,
-                "isDirectory":  isDir,
-                "size":         size,
-                "modifiedDate": millis,
-            ]
-        }
+        return []
     }
 
     func downloadFile(remotePath: String) async throws -> String {
-        guard let smb = smb else { throw makeError("接続されていません") }
-
-        let fileName = URL(fileURLWithPath: remotePath).lastPathComponent
-        let localURL = FileManager.default.temporaryDirectory
-            .appendingPathComponent(fileName)
-        try? FileManager.default.removeItem(at: localURL)
-
-        try await smb.downloadItem(atPath: remotePath, to: localURL)
-        return localURL.path
-    }
-
-    private func makeError(_ msg: String) -> NSError {
-        NSError(domain: "SMBHandler", code: -1,
-                userInfo: [NSLocalizedDescriptionKey: msg])
+        return ""
     }
 }
